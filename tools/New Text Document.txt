@@ -1,0 +1,1 @@
+exiftool -filename -gpslatitude -gpslongitude -gpsaltitude -createdate -relativaltude -T -n -csv -ext jpg "E:\ARIF KERJAAN\3. TERMIN 2 DOKUMENTASI 07092020\PAKET 22\SIMA V TERMIN 2\PETAK 3" > "E:\ARIF KERJAAN\3. TERMIN 2 DOKUMENTASI 07092020\PAKET 22\SIMA V TERMIN 2\PETAK 3\hasil.csv"
