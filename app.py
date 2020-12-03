@@ -1,24 +1,48 @@
 """Qiuby Zhukhi 2020"""
-from simplekml import Kml, IconStyle
+from simplekml import Kml
 from subprocess import Popen,PIPE,STDOUT
 from shutil import move as pindah
 from os import path, listdir,makedirs, scandir
-placemark = Kml()
-
-mypath = "E:\\arif data"
+from multiprocessing import Pool, Process
+mypath = input("Path Foto: ")
 last_element = mypath.split("\\")[-1]
-deskripsi = ""
-file_saved = f"{mypath}/{deskripsi}{last_element}.kml"
+
+#------------ [ SETTIINGS ] ---------------
+add_jpg_to_kmz = False
 move_files_no_coordinate = True
+no_coordinate_folder = "NO COORDINATE"
+titik_direct = f"{mypath}/link_foto_langsung_{last_element}.kml"
+titik_kmz = f"{mypath}/link_foto_file_{last_element}.kml"
+kompilasi_kmz = f"{mypath}/kompilasi_{last_element}.kmz"
+thread = 3
+#------------------------------------------
+
+
+placemark = Kml()
+kmz_placemark = Kml()
+titik_files = Kml()
+list_photo_no_coordinate = []
+list_photo_yes_coordinate = []
+numb_foto_koordinat = 0
+numb_tidak_ada = 0
+total = None
+
+def logs():
+    var = f"{last_element}\nFOTO BERKOORDINAT: {numb_foto_koordinat}\nTIDAK ADA KOORDINAT: {numb_tidak_ada}\nJumlah semua foto: {total}\nLIST FOTO TIDAK ADA KOORDINAT: \n"+"\n".join([i for i in list_photo_no_coordinate])
+    with open(titik_direct.replace(".kml", ".txt"), "w") as catatan:
+        catatan.write(var)
+        catatan.close()
+    print(var)
 
 def myplacemark(nama=None, directory_file=None, kordinat=None):
     des = f'<![CDATA[<img style="max-width:500px;" src="file:///{directory_file}">]]>'
     styles = f"""<table border="0">
   <tr><td><b>FileName</b></td><td>{nama}</td></tr>"""
+
+    #<img style="max-width:500px;" src="files/TimePhoto_20201102_100725.jpg">
     pl = placemark.newpoint(name=nama,
                        coords=kordinat,
                        description=des)
-    #pl.style.iconstyle.icon.href =
 
 def real_path(file_name):
     return path.dirname(path.abspath(__file__)) + file_name
@@ -48,7 +72,6 @@ def scandirs(pathku=None):
 
 def run_fast_scandir(dir, ext):    # dir: str, ext: list
     subfolders, files = [], []
-
     for f in scandir(dir):
         if f.is_dir():
             subfolders.append(f.path)
@@ -67,30 +90,64 @@ def makedir(target_Files=None, toDir=None):
     pindah(target_Files, toDir)
     print(f"Move: {target_Files}\n To: {toDir}\r\n")
 
+def KMZFiles(name=None, kordinat=None, directory_file=None, file_name=None, add_photo=add_jpg_to_kmz):
+    kmz_placemark.newpoint(name=name,
+             coords=kordinat,
+             description=f'<img style="max-width:500px;" src="files/{file_name}">')
+    if(add_photo):
+        placemark.addfile(directory_file)
+
+def titik_file(name=None, kordinat=None, directory_file=None, file_name=None):
+    titik_files.newpoint(name=name,
+             coords=kordinat,
+             description=f'<img style="max-width:500px;" src="files/{file_name}">')
+process_thread = []
+Pool(thread)
 def get_coordinat_test(list_files=[]):
+    global numb_tidak_ada, numb_foto_koordinat, total
     for list_path in list_files:
         details_foto = getGPSPostion(input_files=list_path)
         file_name = details_foto.get("File Name")
-        try:
-            lat, long = details_foto.get("GPS Position").split(" ")
-            if (len(lat) and len(long) != 0):
-                print(f"Membuat Placemark {file_name}")
-                myplacemark(nama=file_name, kordinat=[(long, lat)], directory_file=list_path)
-        except:
-            print(f"Not Found GPS in: {file_name}")
-            if (move_files_no_coordinate):
-                link_moved = list_path[:list_path.rfind("\\") or list_path.rfind("/")]
-                makedir(target_Files=list_path, toDir=f"{link_moved}/NO COORDINATE")
+        if(no_coordinate_folder not in list_path):
+            try:
+                lat, long = details_foto.get("GPS Position").split(" ")
+                if (len(lat) and len(long) != 0):
+                    numb_foto_koordinat += 1
+                    print(f"Membuat Placemark {file_name}")
+                    myplacemark(nama=file_name, kordinat=[(long, lat)], directory_file=list_path)
+                    titik_file(name=file_name,
+                             kordinat=[(long, lat)],
+                             directory_file=list_path,
+                             file_name=file_name.split("\\")[-1],
+                        )
+#                     pross = Process(target=myplacemark(), args=(file_name, [(long, lat)], list_path)).start()
+                    # KMZFiles(name=file_name,
+                    #          kordinat=[(long, lat)],
+                    #          directory_file=list_path,
+                    #          file_name=file_name.split("\\")[-1],
+                    #     )
+                    list_photo_yes_coordinate.append(list_path)
+            except:
+                print(f"Not Found GPS in: {file_name}")
+                numb_tidak_ada += 1
+                list_photo_no_coordinate.append(list_path)
+                if (move_files_no_coordinate):
+                    link_moved = list_path[:list_path.rfind("\\") or list_path.rfind("/")]
+                    makedir(target_Files=list_path, toDir=f"{link_moved}/{no_coordinate_folder}")
+    total = numb_tidak_ada + numb_foto_koordinat
+    logs()
 
 def getAllFiles():
     subfolders,files = run_fast_scandir(mypath, [".jpg"])
     get_coordinat_test(files)
-    placemark.save(file_saved)
-
+    if(numb_foto_koordinat > 0):
+#        kmz_placemark.savekmz(kompilasi_kmz, format=False)
+        titik_files.save(titik_kmz)
+        placemark.save(titik_direct)
 def main():
     list_files = scandirs(pathku=mypath)
     get_coordinat_test(list_files)
     print(f"SAVED FILES: {mypath}")
-    placemark.save(file_saved)
-# main()
+
 getAllFiles()
+
