@@ -15,6 +15,12 @@ titik_direct = f"{mypath}/link_foto_langsung_{last_element}.kml"
 titik_kmz = f"{mypath}/link_foto_file_{last_element}.kml"
 kompilasi_kmz = f"{mypath}/kompilasi_{last_element}.kmz"
 thread = 3
+view_photo_no_coordinate = False
+
+#--------- [ KONFIGURASI KML ] ------------
+activate_titik_direct = True
+activate_titik_kmz = True
+activate_kompilasi_kmz = False
 #------------------------------------------
 
 
@@ -28,7 +34,7 @@ numb_tidak_ada = 0
 total = None
 
 def logs():
-    var = f"{last_element}\nFOTO BERKOORDINAT: {numb_foto_koordinat}\nTIDAK ADA KOORDINAT: {numb_tidak_ada}\nJumlah semua foto: {total}\nLIST FOTO TIDAK ADA KOORDINAT: \n"+"\n".join([i for i in list_photo_no_coordinate])
+    var = f"\r\n{last_element}\nFOTO BERKOORDINAT: {numb_foto_koordinat}\nTIDAK ADA KOORDINAT: {numb_tidak_ada}\nJumlah semua foto: {total}\n"+"LIST FOTO TIDAK ADA KOORDINAT: \n"+("\n".join([i for i in list_photo_no_coordinate]) if(view_photo_no_coordinate) else "Logs: "+mypath)
     with open(titik_direct.replace(".kml", ".txt"), "w") as catatan:
         catatan.write(var)
         catatan.close()
@@ -97,10 +103,31 @@ def KMZFiles(name=None, kordinat=None, directory_file=None, file_name=None, add_
     if(add_photo):
         placemark.addfile(directory_file)
 
-def titik_file(name=None, kordinat=None, directory_file=None, file_name=None):
+def titik_file(name=None, kordinat=None, file_name=None):
     titik_files.newpoint(name=name,
              coords=kordinat,
              description=f'<img style="max-width:500px;" src="files/{file_name}">')
+
+def kml_pilihan(**params):
+    nama = params.get("nama")
+    directory_file = params.get("directory_file")
+    kordinat = params.get("kordinat")
+
+    if(activate_titik_direct):
+        myplacemark(nama=nama, directory_file=directory_file, kordinat=kordinat)
+    if(activate_titik_kmz):
+        titik_file(name=nama, kordinat=kordinat, file_name=nama)
+    if(activate_kompilasi_kmz):
+        KMZFiles(name=nama, kordinat=kordinat, directory_file=directory_file, add_photo=add_jpg_to_kmz)
+
+def save_files_kml():
+    if(activate_titik_direct):
+        placemark.save(titik_direct)
+    if(activate_titik_kmz):
+        titik_files.save(titik_kmz)
+    if(activate_kompilasi_kmz):
+        kmz_placemark.save(kompilasi_kmz)
+
 process_thread = []
 Pool(thread)
 def get_coordinat_test(list_files=[]):
@@ -114,12 +141,13 @@ def get_coordinat_test(list_files=[]):
                 if (len(lat) and len(long) != 0):
                     numb_foto_koordinat += 1
                     print(f"Membuat Placemark {file_name}")
-                    myplacemark(nama=file_name, kordinat=[(long, lat)], directory_file=list_path)
-                    titik_file(name=file_name,
-                             kordinat=[(long, lat)],
-                             directory_file=list_path,
-                             file_name=file_name.split("\\")[-1],
-                        )
+                    kml_pilihan(nama=file_name, kordinat=[(long,lat)], directory_file=list_path)
+                    #myplacemark(nama=file_name, kordinat=[(long, lat)], directory_file=list_path)
+                    # titik_file(name=file_name,
+                    #          kordinat=[(long, lat)],
+                    #          directory_file=list_path,
+                    #          file_name=file_name.split("\\")[-1],
+                    #     )
 #                     pross = Process(target=myplacemark(), args=(file_name, [(long, lat)], list_path)).start()
                     # KMZFiles(name=file_name,
                     #          kordinat=[(long, lat)],
@@ -141,9 +169,11 @@ def getAllFiles():
     subfolders,files = run_fast_scandir(mypath, [".jpg"])
     get_coordinat_test(files)
     if(numb_foto_koordinat > 0):
+        save_files_kml()
+        # placemark.save(titik_direct)
+        # titik_files.save(titik_kmz)
 #        kmz_placemark.savekmz(kompilasi_kmz, format=False)
-        titik_files.save(titik_kmz)
-        placemark.save(titik_direct)
+
 def main():
     list_files = scandirs(pathku=mypath)
     get_coordinat_test(list_files)
