@@ -3,10 +3,11 @@ from simplekml import Kml
 from subprocess import Popen,PIPE,STDOUT
 from shutil import move as pindah
 from os import path, listdir,makedirs, scandir
-from multiprocessing import Pool, Process
-mypath = input("Path Foto: ")
-last_element = mypath.split("\\")[-1]
 
+
+mypath = input("Path Foto: ")
+print("Target: "+mypath)
+last_element = mypath.split("\\")[-1]
 #------------ [ SETTIINGS ] ---------------
 add_jpg_to_kmz = False
 move_files_no_coordinate = True
@@ -14,7 +15,6 @@ no_coordinate_folder = "NO COORDINATE"
 titik_direct = f"{mypath}/link_foto_langsung_{last_element}.kml"
 titik_kmz = f"{mypath}/link_foto_file_{last_element}.kml"
 kompilasi_kmz = f"{mypath}/kompilasi_{last_element}.kmz"
-thread = 3
 view_photo_no_coordinate = False
 
 #--------- [ KONFIGURASI KML ] ------------
@@ -32,6 +32,7 @@ list_photo_yes_coordinate = []
 numb_foto_koordinat = 0
 numb_tidak_ada = 0
 total = None
+
 
 def logs():
     var = f"\r\n{last_element}\nFOTO BERKOORDINAT: {numb_foto_koordinat}\nTIDAK ADA KOORDINAT: {numb_tidak_ada}\nJumlah semua foto: {total}\n"+"LIST FOTO TIDAK ADA KOORDINAT: \n"+("\n".join([i for i in list_photo_no_coordinate]) if(view_photo_no_coordinate) else "Logs: "+mypath)
@@ -61,7 +62,7 @@ def Mycmd(cmd=None):
 
 def getGPSPostion(tooldir=real_path("/tools/exiftool.exe"), input_files=None):
     dict = {}
-    cmd = f'{tooldir} -filename -GPSPosition -n "{input_files}"'
+    cmd = f'"{tooldir}" -filename -GPSPosition -n "{input_files}"'
     for i in Mycmd(cmd):
         keys = i.strip().decode().split(":")[0].strip()
         values = i.strip().decode().split(":")[1].strip()
@@ -76,7 +77,7 @@ def scandirs(pathku=None):
             link_files.append(path_files)
     return link_files
 
-def run_fast_scandir(dir, ext):    # dir: str, ext: list
+def run_fast_scandir(dir, ext): #Source func From: https://stackoverflow.com/a/59803793
     subfolders, files = [], []
     for f in scandir(dir):
         if f.is_dir():
@@ -124,36 +125,23 @@ def save_files_kml():
     if(activate_titik_direct):
         placemark.save(titik_direct)
     if(activate_titik_kmz):
-        titik_files.save(titik_kmz)
+        titik_files.save(titik_kmz, format=False)
     if(activate_kompilasi_kmz):
         kmz_placemark.save(kompilasi_kmz)
 
-process_thread = []
-Pool(thread)
 def get_coordinat_test(list_files=[]):
     global numb_tidak_ada, numb_foto_koordinat, total
     for list_path in list_files:
-        details_foto = getGPSPostion(input_files=list_path)
-        file_name = details_foto.get("File Name")
         if(no_coordinate_folder not in list_path):
             try:
+                details_foto = getGPSPostion(input_files=list_path)
+                file_name = details_foto.get("File Name")
                 lat, long = details_foto.get("GPS Position").split(" ")
+                print(f"Koordinate: {lat}, {long}")
                 if (len(lat) and len(long) != 0):
                     numb_foto_koordinat += 1
                     print(f"Membuat Placemark {file_name}")
-                    kml_pilihan(nama=file_name, kordinat=[(long,lat)], directory_file=list_path)
-                    #myplacemark(nama=file_name, kordinat=[(long, lat)], directory_file=list_path)
-                    # titik_file(name=file_name,
-                    #          kordinat=[(long, lat)],
-                    #          directory_file=list_path,
-                    #          file_name=file_name.split("\\")[-1],
-                    #     )
-#                     pross = Process(target=myplacemark(), args=(file_name, [(long, lat)], list_path)).start()
-                    # KMZFiles(name=file_name,
-                    #          kordinat=[(long, lat)],
-                    #          directory_file=list_path,
-                    #          file_name=file_name.split("\\")[-1],
-                    #     )
+                    kml_pilihan(nama=file_name, kordinat=[(long, lat)], directory_file=list_path)
                     list_photo_yes_coordinate.append(list_path)
             except:
                 print(f"Not Found GPS in: {file_name}")
@@ -163,16 +151,18 @@ def get_coordinat_test(list_files=[]):
                     link_moved = list_path[:list_path.rfind("\\") or list_path.rfind("/")]
                     makedir(target_Files=list_path, toDir=f"{link_moved}/{no_coordinate_folder}")
     total = numb_tidak_ada + numb_foto_koordinat
-    logs()
+    if(numb_foto_koordinat > 0):
+        try:
+            print("File Disave")
+            save_files_kml()
+            logs()
+        except Exception as e:
+            print(e)
+            print("Gagal disave")
 
 def getAllFiles():
     subfolders,files = run_fast_scandir(mypath, [".jpg"])
     get_coordinat_test(files)
-    if(numb_foto_koordinat > 0):
-        save_files_kml()
-        # placemark.save(titik_direct)
-        # titik_files.save(titik_kmz)
-#        kmz_placemark.savekmz(kompilasi_kmz, format=False)
 
 def main():
     list_files = scandirs(pathku=mypath)
@@ -180,4 +170,5 @@ def main():
     print(f"SAVED FILES: {mypath}")
 
 getAllFiles()
+
 
