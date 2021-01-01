@@ -2,7 +2,7 @@
 from simplekml import Kml
 from subprocess import Popen, PIPE, STDOUT
 from shutil import move as pindah
-from os import path, makedirs, scandir, system, remove
+from os import path, makedirs, scandir, remove
 from threading import Thread
 
 placemark = Kml()
@@ -189,7 +189,8 @@ def main(mypath):
     for _ in kills:
         _.join()
     save_files_kml(mypath)
-    system("pause")
 
 if __name__ == '__main__':
     main(input("PATH FOTO: "))
+    #Handle Terminal executable
+    input("Press Any Key to exit")
