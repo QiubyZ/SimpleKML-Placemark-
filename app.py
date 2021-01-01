@@ -13,24 +13,6 @@ list_photo_yes_coordinate = []
 numb_foto_koordinat = 0
 numb_tidak_ada = 0
 total = None
-def settings():
-    global mypath, last_element,add_jpg_to_kmz,move_files_no_coordinate, no_coordinate_folder, titik_kmz,titik_direct, kompilasi_kmz, view_photo_no_coordinate, activate_kompilasi_kmz, activate_titik_direct,activate_titik_kmz
-    mypath = input("Path Foto: ")
-    print("Target: " + mypath)
-    last_element = mypath.split("\\")[-1]
-    # ------------ [ SETTIINGS ] ---------------
-    add_jpg_to_kmz = False
-    move_files_no_coordinate = True
-    no_coordinate_folder = "NO COORDINATE"
-    titik_direct = f"{mypath}/link_foto_langsung_{last_element}.kml"
-    titik_kmz = f"{mypath}/link_foto_file_{last_element}.kml"
-    kompilasi_kmz = f"{mypath}/kompilasi_{last_element}.kmz"
-    view_photo_no_coordinate = False
-    # --------- [ KONFIGURASI KML ] ------------
-    activate_titik_direct = True
-    activate_titik_kmz = True
-    activate_kompilasi_kmz = False
-    # ------------------------------------------
 
 def confPath(mypath):
     last_element = mypath.split("\\")[-1]
@@ -141,7 +123,7 @@ def kml_pilihan(**params):
     if (sett.get("activate_titik_kmz")):
         titik_file(name=nama, kordinat=kordinat, file_name=nama)
     if (sett.get("activate_kompilasi_kmz")):
-        KMZFiles(name=nama, kordinat=kordinat, directory_file=directory_file, add_photo=add_jpg_to_kmz)
+        KMZFiles(name=nama, kordinat=kordinat, directory_file=directory_file, add_photo=Konfigurasi().get("add_jpg_to_kmz"))
 
 def save_files_kml(path, sett=Konfigurasi()):
     path = confPath(path)
