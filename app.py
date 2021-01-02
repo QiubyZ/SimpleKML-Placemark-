@@ -1,9 +1,12 @@
 """Qiuby Zhukhi 2020"""
 from simplekml import Kml
+from time import time
 from subprocess import Popen, PIPE, STDOUT
 from shutil import move as pindah
 from os import path, makedirs, scandir, remove
 from threading import Thread
+from queue import Queue
+from tqdm import tqdm
 
 placemark = Kml()
 kmz_placemark = Kml()
@@ -33,7 +36,8 @@ def Konfigurasi():
 
         "activate_titik_direct":True,
         "activate_titik_kmz":True,
-        "activate_kompilasi_kmz":False
+        "activate_kompilasi_kmz":False,
+        "show_result":False
     }
     return set_dict
 
@@ -90,7 +94,8 @@ def makedir(target_Files=None, toDir=None):
     try:
         makedirs(name=f"{toDir}", exist_ok=True)
         pindah(target_Files, toDir)
-        print(f"Move: {target_Files}\n To: {toDir}\r\n")
+        if(Konfigurasi().get("show_result")):
+            print(f"Move: {target_Files}\n To: {toDir}\r\n")
     except Exception as e:
         # Permasalahan ketika file sudah ada didalam folder Coordinate
         # Autau terkait dengan pemindahan file ke folder coordinate
@@ -113,6 +118,7 @@ def titik_file(name=None, kordinat=None, file_name=None):
                          description=f'<img style="max-width:300px;" src="files/{file_name}">')
     t.style.iconstyle.scale = 0.5
     t.labelstyle.scale = 0
+
 def kml_pilihan(**params):
     nama = params.get("nama")
     directory_file = params.get("directory_file")
@@ -142,19 +148,22 @@ def save_files_kml(path, sett=Konfigurasi()):
 def getstarted(list_path):
     global numb_tidak_ada, numb_foto_koordinat, total
     sett = Konfigurasi()
+    show_result = sett.get("show_result")
     if (sett.get("no_coordinate_folder") not in list_path):
         try:
             details_foto = getGPSPostion(input_files=list_path)
             file_name = details_foto.get("File Name")
             lat, long = details_foto.get("GPS Position").split(" ")
-            print(f"Koordinate: {lat}, {long}")
             if (len(lat) and len(long) != 0):
                 numb_foto_koordinat += 1
-                print(f"Membuat Placemark {file_name}")
+                if(show_result):
+                    print(f"Membuat Placemark {file_name}")
+                    print(f"Koordinate: {lat}, {long}")
                 kml_pilihan(nama=file_name, kordinat=[(long, lat)], directory_file=list_path)
                 list_photo_yes_coordinate.append(list_path)
         except:
-            print(f"Not Found GPS in: {list_path}")
+            if(show_result):
+                print(f"Not Found GPS in: {list_path}")
             numb_tidak_ada += 1
             list_photo_no_coordinate.append(list_path)
             if (sett.get("move_files_no_coordinate")):
@@ -178,16 +187,17 @@ def logs(mypath, settings):
     print(simpanan)
 
 def main(mypath):
-    kills = []
+    kills = Queue()
     subfolders, files = run_fast_scandir(mypath, [".jpg"])
     print(f"FOTO TERDETEKSI: {len(files)}")
-    for foto in files:
+    for foto in tqdm(files, desc="Loading"):
         if Konfigurasi().get("no_coordinate_folder") not in files:
             t = Thread(target=getstarted, args=(foto, ))
-            kills.append(t)
+            kills.put(t)
+            t.setDaemon(True)
             t.start()
-    for _ in kills:
-        _.join()
+    for _ in tqdm(range(kills.qsize()), desc="KILL thread"):
+        kills.get().join()
     save_files_kml(mypath)
 
 if __name__ == '__main__':
